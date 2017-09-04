@@ -1,0 +1,141 @@
+COMPILER TemplatingGrammar
+
+CHARACTERS
+  letter = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".
+  digit = "0123456789".
+  cr = '\r'.
+  lf = '\n'.
+  tab = '\t'.
+  space = ' '.
+  eol = '\u000a'. /* 10 = line feed */
+  hexDigit = digit + "ABCDEFabcdef".
+  newLine = cr + eol. /* Line separator character (U+2028) + Line feed character (U+2029) */
+  regularStringChar = ANY - '"' - '\\' - newLine.
+
+TOKENS
+  ident  = letter {letter | digit | "." | "_" | "-" }.
+
+  string = "\""	{ regularStringChar
+					| "\\\'" | "\\\"" | "\\\\" | "\\0" | "\\a" | "\\b" | "\\f" | "\\n" | "\\r" | "\\t" | "\\v"
+					| "\\x" hexDigit [hexDigit] [hexDigit] [hexDigit]
+					| "\\u" hexDigit hexDigit hexDigit hexDigit
+					| "\\U" hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit
+					} 
+		"\"".
+IGNORE cr + lf + tab + space
+
+PRODUCTIONS
+
+TemplatingGrammar
+	(.
+		ConditionalPlaceholderExpression cond = null;
+		SimplePlaceholderExpression placeholder = null;
+		AbstractCondition condition = null;
+	.)
+	=
+	IF(IsFollowedByBracket()) ConditionalPlaceholderExpression<out cond>
+	(.
+		expression = cond;
+	.)
+	|
+	"[" Condition<out condition> "]"
+	(.
+		expression = new ConditionExpression()
+		{
+			Condition = condition
+		};
+	.)
+	|
+	SimplePlaceholderExpression<out placeholder>
+	(.
+		expression = placeholder;
+	.)
+.
+
+ConditionalPlaceholderExpression<out ConditionalPlaceholderExpression cond>
+	=
+	(.
+		SimplePlaceholderExpression placeholder = null;
+		AbstractCondition condition = null;
+	.)
+	SimplePlaceholderExpression<out placeholder>
+	"["
+		Condition<out condition>
+	"]"
+	(.
+		cond = new ConditionalPlaceholderExpression()
+		{
+			Placeholder = placeholder,
+			Condition = condition
+		};
+	.)
+.
+
+Condition<out AbstractCondition cond>
+	(.
+		ComparisionCondition comp = null;
+		Grammar.BinaryOperator op;
+		AbstractCondition secondary = null;
+	.)
+	=
+	ComparisionCondition<out comp>  (. cond = comp; .)
+	[
+		BinaryOperator<out op>
+		Condition<out secondary>
+		(.
+			cond = new BinaryCondition(cond, op, secondary);
+		.)
+	]
+.
+
+BinaryOperator<out Grammar.BinaryOperator op>
+	(.
+		op = Grammar.BinaryOperator.LogicalAnd;
+	.)
+	=
+	"and" (. op = Grammar.BinaryOperator.LogicalAnd; .)
+	|
+	"or"  (. op = Grammar.BinaryOperator.LogicalOr; .)
+.
+	
+ComparisionCondition<out ComparisionCondition comp> 
+	(.
+		SimplePlaceholderExpression lhs = null;
+		ConditionOperator op;
+		LiteralExpression rhs = null;
+	.)
+	= 
+	SimplePlaceholderExpression<out lhs>
+	ConditionOperator<out op>
+	LiteralExpression<out rhs>
+	(.
+		comp = new ComparisionCondition()
+		{
+			Lhs = lhs,
+			Operator = op,
+			Rhs = rhs
+		};
+	.)
+.
+
+ConditionOperator<out ConditionOperator op>
+	(. op = Grammar.ConditionOperator.Equals; .)
+	=
+	(
+		"=" (. op = Grammar.ConditionOperator.Equals; .)
+	|
+		"!=" (. op = Grammar.ConditionOperator.NotEquals; .)
+	)
+.
+
+LiteralExpression<out LiteralExpression lit>
+	=
+	string (. lit = new LiteralExpression(t.val.Substring(1, t.val.Length - 2)); .)
+.
+
+SimplePlaceholderExpression<out SimplePlaceholderExpression placeholder> 
+	=
+	ident (. placeholder = new SimplePlaceholderExpression(t.val); .)
+.
+
+END TemplatingGrammar.
