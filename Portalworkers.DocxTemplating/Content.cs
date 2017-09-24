@@ -13,6 +13,11 @@ namespace Portalworkers.DocxTemplating
             Fields = new List<FieldContent>();
         }
 
+        public Content(params FieldContent[] fields) : this()
+        {
+            this.Fields.AddRange(fields);
+        }
+
         #endregion
 
         #region Properties

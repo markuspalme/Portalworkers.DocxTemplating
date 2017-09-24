@@ -21,9 +21,9 @@ namespace Portalworkers.DocxTemplating
 
         #region Constructor
 
-        public TemplateProcessor(Stream stream)
+        public TemplateProcessor(Stream templateStream)
         {
-            wordDocument = WordprocessingDocument.Open(stream, true);
+            wordDocument = WordprocessingDocument.Open(templateStream, true);
         }
 
         #endregion
@@ -93,7 +93,7 @@ namespace Portalworkers.DocxTemplating
             }
         }
 
-        public TemplateProcessor fillPartContent(XElement part, Content content)
+        private TemplateProcessor fillPartContent(XElement part, Content content)
         {
             if (content.Fields != null)
             {
